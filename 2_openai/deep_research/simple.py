@@ -4,19 +4,18 @@ from research_manager import ResearchManager
 
 load_dotenv(override=True)
 
+async def run(Query: str):
+    async for Chunk in ResearchManager().Run(Query):
+        yield Chunk
 
-async def run(query: str):
-    async for status_update in ResearchManager().run(query):
-        yield status_update
 
+with gr.Blocks() as UI:
+    gr.Markdown("#Deep research agent")
+    QueryTextbox = gr.Textbox(label="Enter your search query here", lines=3)
+    RunButton = gr.Button("Run", variant="primary")
+    Report = gr.Markdown(label="Report")
 
-with gr.Blocks() as ui:
-    query_textbox = gr.Textbox(label="What topic would you like to research?")
-    run_button = gr.Button("Run", variant="primary")
-    report = gr.Markdown(label="Report")
-    
-    run_button.click(run, inputs=query_textbox, outputs=report)
-    query_textbox.submit(run, inputs=query_textbox, outputs=report)
+    QueryTextbox.submit(fn=run, inputs=QueryTextbox, outputs=Report)
+    RunButton.click(fn=run, inputs=QueryTextbox, outputs=Report)
 
-ui.launch(theme=gr.themes.Default(primary_hue="sky"))
-
+UI.launch(theme=gr.themes.Default(primary_hue="sky"), inbrowser=True)

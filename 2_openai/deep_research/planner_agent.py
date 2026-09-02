@@ -1,24 +1,23 @@
-from pydantic import BaseModel, Field
-from agents import Agent
-import os
 from dotenv import load_dotenv
+from agents import Agent
+from pydantic import BaseModel, Field
+
 load_dotenv(override=True)
-
-MODEL_NAME = os.getenv("DEFAULT_MODEL_NAME", "gpt-5.4-mini")
-HOW_MANY_SEARCHES = int(os.getenv("HOW_MANY_SEARCHES", 5))
-
-
-INSTRUCTIONS = f"""
-You are a research assistant. Given a user query, come up with a set of web searches
-to perform to best answer the query. Output {HOW_MANY_SEARCHES} terms to query for.
-"""
+ModelName = "gpt-5.4-nano"
+NumSearches = 5
 
 class WebSearchItem(BaseModel):
-    reason: str = Field(description="Your reasoning for why this search is important to the query.")
-    query: str = Field(description="The search term to use for the web search.")
-
+    reason: str = Field(description="The reason why this search term is likely to yield results helpful in answering the user query")
+    search_term: str = Field(description="The search term to use for web search")
 
 class WebSearchPlan(BaseModel):
-    searches: list[WebSearchItem] = Field(description="A list of web searches to perform to best answer the query.")
-    
-planner_agent = Agent(name="Planner Agent", instructions=INSTRUCTIONS, model=MODEL_NAME, output_type=WebSearchPlan)
+    searches: list[WebSearchItem] = Field(description="The list of web searches to be performed to answer the user query")
+
+Instructions = f"""
+               Given a query provided by the user, you come up with {NumSearches} search terms, each of which
+               will be used to search the web to fetch information pertinent to answering the query. 
+               Output {NumSearches} search terms.
+               """
+
+PlannerAgent = Agent(name="Planner Agent", instructions=Instructions, model=ModelName,
+                          output_type=WebSearchPlan)
