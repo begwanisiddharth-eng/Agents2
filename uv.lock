@@ -90,6 +90,7 @@ dependencies = [
     { name = "rich" },
     { name = "sendgrid" },
     { name = "strands-agents", extra = ["openai"] },
+    { name = "tavily" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "wikipedia" },
 ]
@@ -130,6 +131,7 @@ requires-dist = [
     { name = "rich", specifier = ">=15.0.0" },
     { name = "sendgrid", specifier = ">=6.12.5" },
     { name = "strands-agents", extras = ["openai"], specifier = ">=1.43.0" },
+    { name = "tavily", specifier = ">=1.1.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.46.0" },
     { name = "wikipedia", specifier = ">=1.4.0" },
 ]
@@ -4162,6 +4164,16 @@ openai = [
     { name = "aws-bedrock-token-generator" },
     { name = "openai" },
 ]
+
+[[package]]
+name = "tavily"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/63/ba/cd74acdb0537a02fb5657afbd5fd5a27a298c85fc27f544912cc001377bb/tavily-1.1.0.tar.gz", hash = "sha256:7730bf10c925dc0d0d84f27a8979de842ecf88c2882183409addd855e27d8fab", size = 5081, upload-time = "2025-10-31T09:32:40.555Z" }
 
 [[package]]
 name = "tenacity"
