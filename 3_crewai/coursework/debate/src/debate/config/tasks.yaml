@@ -1,0 +1,41 @@
+propose:
+  description: >
+    You are proposing the motion. The motion is {motion}. Come up with clear
+    and convincing arguments in favor of the motion. Focus on facts and figures
+    to support your case. Be concise and concentrate on the key points. Provide
+    your argument in 500 words or less.
+  expected_output: >
+    A clear and compelling argument in favor of the motion which is {motion}. The
+    argument should be well structured and have a coherent flow. Provide your 
+    output in markdown format.
+  agent: debater
+  output_file: output/propose.md
+
+oppose:
+  description: >
+    You are arguing against the motion. The motion is {motion}. Provide strong,
+    fact-based arguments against the motion. Focus on facts and figures to support
+    your case. Be concise and concentrate on the key points. Provide your argument
+    in 500 words or less.
+  expected_output: >
+    A clear and compelling argument against the motion which is {motion}. Provide a
+    well-structured argument with a cohesive flow. Provide your output in markdown
+    format.
+  agent: debater
+  output_file: output/oppose.md
+
+decide:
+  description: >
+    Given arguments for and against the motion {motion}, you have to decide which
+    side is superior and why. Do not factor in your own views. Be impartial and
+    make your judgement purely on the basis of the strength of the arguments provided.
+  expected_output: >
+    Your verdict on which side is the winner, along with a brief rationale for your
+    decision. Provide your output in markdown format. Include both the arguments in
+    favor of and against the motion and then your decision along with the rationale.
+    The motion is {motion}
+  agent: judge
+  output_file: output/decide.md
+
+
+

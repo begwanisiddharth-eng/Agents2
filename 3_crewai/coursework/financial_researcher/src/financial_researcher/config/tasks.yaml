@@ -1,0 +1,41 @@
+research_task:
+  description: >
+    Conduct a thorough, up-to-date research on company {company}. The research
+    must be the latest as of {current_date}. You have a search tool at your disposal
+    to search for the latest news on the company.
+    Your research should contain:
+    1. Current performance and market position
+    2. Historical performance of the company
+    3. Key strengths and weaknesses
+    4. Major challenges and opportunities
+    5. Competitive landscape and how the company is positioned relative to competitorsIn 
+    6. Any latest news or information about the company
+  expected_output: >
+    Comprehensive research on the company {company} which is up-to-date as of
+    {current_date}. The research should be organized into clear themes, contain
+    only the most relevant material and should be 800 words or less. The emphasis
+    should be on quality, accuracy and relevance of content. The research output
+    should have a cohesive flow.
+  agent: researcher
+
+analysis_task:
+  description: >
+    Review the research material that you are provided and come up with a well-structured,
+    comprehensive market report on company {company} which is up-to-date as of 
+    {current_date}. The report should:
+    1. Have an executive summary
+    2. Include all relevant material from the research provided to you
+    3. Identify major themes, patterns and provide insights
+    4. Assess growth potential and future outlook
+    4. Conclude with your view on the investment potential of the company
+    Please do not use your own knowledge, and use only the research data provided to
+    you.
+  expected_output: >
+    A well-structured, crisply formatted report on company {company} which contains 
+    information which is latest as of {current_date}. The report should have a section for each
+    of the major themes. The sections should be laid out to provide a coherent flow. The report
+    output should be in markdown format and should not exceed 500 words.
+  agent: analyst
+  context:
+  - research_task
+  output_file: output/Research_{company}.md
