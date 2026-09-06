@@ -1,0 +1,67 @@
+design_task:
+  description: >
+    The detailed requirements are: {requirements}
+    Take these high-level requirements and create a detailed design blueprint for the engineering team.
+    IMPORTANT: Only output the detailed design in markdown format, laying out module(s), classes, functions.
+    Do not write the detailed code; only specify the method and function signatures
+    You have the following engineers to whom you can assign work: backend_engineer, frontend_engineer, test_engineer
+    - The backend engineer must write the backend Python code
+    - The frontend engineer must write the gradio app
+    - The test engineer must write the unit tests for the backend code, execute the tests and fix any bugs
+    All engineers must work in the same sandbox directory. There is no directory structure - all files have to be written in the
+    same directory
+    All code runs in a uv project with gradio installed. There is no other third-party package permitted except gradio.
+  expected_output: >
+    A detailed design specification with code structure, along with assignment of tasks to the engineers in the team
+  agent: engineering_lead
+  output_file: sandbox/design.md
+
+code_task:
+  description: >
+    Write Python code to meet the design specifications furnished by the engineering lead, in order to achieve the requirements.
+    Produce backend code only, do not write frontend code or unit tests.
+    The requirements are: {requirements}
+  expected_output: >
+    Python code written to the sandbox and tested. This code should satisfy the requirements
+    IMPORTANT: Use your sandbox tools to write and check the code.
+  agent: backend_engineer
+  context:
+  - design_task
+
+frontend_task:
+  description: >
+    Write a gradio UI in a module called app.py that demonstrates the backend code, as described in the design.
+    Assume that there is only one user, and ensure that the UI is sleek and professional. The code should be clean and well-written.
+    Then write a separate validation script called `_validate.py` that imports app.py and verifies that the Blocks object constructs
+    without error, and run this script using your sandbox tools.
+    IMPORTANT: The validation script must not call `.launch()` - that would block until timeout. Just import and instantiate.
+    For your reference, here are the requirements: {requirements}
+  expected_output: >
+    A gradio UI in a module called app.py that demonstrates the backend functionality, and a validation script `_validate.py` that ensures
+    app.py loads the Blocks object correctly. All code must be written and checked in the sandbox. 
+    The app.py file must be ready to run as-is, and it should be in the same sandbox directory as the backend code.
+    IMPORTANT: Use your sandbox tools to write and check the code.
+  agent: frontend_engineer
+  context:
+  - design_task
+  - code_task
+
+test_task:
+  description: >
+    Write unit tests for the backend module in a single test file using the stdlib `unittest` module.
+    You do not need to write any unit tests for the gradio UI module app.py
+    On running the tests, if you find any bugs, fix them and retest. Carry on this process till all the unit tests pass.
+    If you change any backend code, ensure that the unit tests pass. It is also important to check that the gradio module
+    app.py keeps working without any problems. Strictly avoid making any changes that may cause the gradio UI in app.py
+    to break.
+  expected_output: >
+    A single test file that can be used to test the backend code.
+    IMPORTANT: Use the sandbox tools to write and run the unit tests.
+    Output a summary of the results of the unit tests in a markdown file.
+  agent: test_engineer
+  context:
+  - design_task
+  - code_task
+  output_file: sandbox/test_summary.md
+
+
