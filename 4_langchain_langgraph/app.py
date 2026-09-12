@@ -1,14 +1,14 @@
 """Gradio app for the Sidekick. Run with: uv run app.py"""
 
 import html
-
 import gradio as gr
-
 import styles
 from sidekick import Sidekick
 
 LAUNCH_STYLE = {"theme": styles.THEME, "css": styles.CSS, "head": styles.JS}
 
+## Raw HTML rendered once at the top of the page via `gr.HTML(HEADER)`. This is
+## just static branding, not tied to any Sidekick state.
 HEADER = """
 <div id="header">
     <div class="context-label">Your personal co-worker</div>
@@ -17,87 +17,104 @@ HEADER = """
 </div>
 """
 
-
-def render_todos(todos):
-    if not todos:
-        items = '<div class="placeholder">The Sidekick will write its plan here as it works</div>'
+def RenderTodos(Todos):
+    """Turn the Sidekick's list of Todo dicts into HTML shown in the Plan panel"""
+    if not Todos:
+        ## This condition will arise at initial loading of the UI or after a reset
+        Items = '<div class="placeholder">The Sidekick will write its plan here as it works</div>'
     else:
-        items = "<ul>" + "".join(
-            f'<li class="{todo["status"]}"><span class="mark"></span>{html.escape(todo["content"])}</li>'
-            for todo in todos
+        ## Each dict in sidekick.Todos list has exactly two keys: `content', which is the todo's text
+        ## written by the agent and can contain characters from a sraped web page and hence is run
+        ## through html.escape, and `status`, which can take exactly one of three string values, 
+        ## "pending", "in-progress" or "completed"
+        Items = "<ul>" + "".join(
+            f'<li class="{Todo["status"]}"><span class="mark"></span>{html.escape(Todo["content"])}</li>'
+             for Todo in Todos
         ) + "</ul>"
-    return f"<h3>Plan</h3>{items}"
+    return f"<h3>Plan</h3>{Items}"
 
 
-async def setup():
+def WatchTodos(sidekick):
+    """ This is called by the timer once every second. The timer is exclusively responsible
+    for updating the plan panel. This is because if any long-running event owned the panel, live
+    updates would not render. This is because Gradio locks an event's declared outputs while the 
+    event is still running"""
+    return RenderTodos(sidekick.Todos) if sidekick else RenderTodos([])
+
+
+
+async def Setup():
     sidekick = Sidekick()
-    await sidekick.setup()
+    await sidekick.Setup()
     return sidekick, gr.update(interactive=True)
 
+async def ProcessMessage(sidekick,Message,SuccessCriteria,History):
+    if sidekick is None: ## The user clicked before Setup launched the MCP servers
+        return History, gr.update(visible=False), sidekick
+    Result = await sidekick.RunTurn(Message, SuccessCriteria, History)
+    return Result, gr.update(visible=sidekick.Paused), sidekick
 
-async def process_message(sidekick, message, success_criteria, history):
-    if sidekick is None:  # the user clicked before setup finished bringing up the MCP servers
-        return history, gr.update(visible=False), sidekick
-    results = await sidekick.run_turn(message, success_criteria, history)
-    return results, gr.update(visible=sidekick.paused), sidekick
-
-
-async def approve(sidekick, history):
-    results = await sidekick.resume(history)
-    return results, gr.update(visible=sidekick.paused), sidekick
+async def Approve(sidekick,History):
+    Result = await sidekick.Resume(History)
+    return Result, gr.update(visible=sidekick.Paused), sidekick
 
 
-def watch_todos(sidekick):
-    """Called by the timer. The timer is the plan panel's only writer: if a long-running
-    event owned the panel as an output, Gradio would lock it as pending and live updates
-    would not render while the Sidekick works."""
-    return render_todos(sidekick.todos) if sidekick else render_todos([])
-
-
-async def reset(sidekick):
+async def Reset(sidekick):
     if sidekick:
-        sidekick.cleanup()
-    new_sidekick = Sidekick()
-    await new_sidekick.setup()
-    return "", "", None, gr.update(visible=False), new_sidekick
+        sidekick.Cleanup()
+    NewSidekick = Sidekick()
+    await NewSidekick.Setup()
+    return "", "", None, gr.update(visible=False), NewSidekick
 
 
-def free_resources(sidekick):
+def FreeResources(sidekick):
     if sidekick:
-        sidekick.cleanup()
+        sidekick.Cleanup()
 
 
-with gr.Blocks(title="Sidekick") as ui:
+with gr.Blocks(title="Sidekick") as UI:
     gr.HTML(HEADER)
-    sidekick = gr.State(delete_callback=free_resources)
+    ## gr.State is a special Gradio component that is not rendered on the page at all.
+    ## It just holds an arbitrary Python object, (in this case the per-session Sidekick
+    ## instance), alive across callbacks for as long as this browser tab's session lasts.
+    ## The delete_callback argument specifies what function to run when the session ends
+    sidekick = gr.State(delete_callback=FreeResources)
 
     with gr.Row():
-        chatbot = gr.Chatbot(label="Sidekick", height=320, scale=3, elem_id="chat")
+        Chatbot = gr.Chatbot(label="Sidekick", height=320, scale=3, elem_id="chat")
         with gr.Column(scale=1):
-            todos_panel = gr.HTML(render_todos([]), elem_id="plan-panel")
+            ## The live "Plan" panel, kept up to date by WatchTodos() via a timer.
+            ## This not updated by any button/textbox event
+            TodosPanel = gr.HTML(RenderTodos([]), elem_id="plan-panel")
     with gr.Group(elem_id="ask-panel"):
         with gr.Row():
-            message = gr.Textbox(show_label=False, placeholder="Your request to the Sidekick")
+            Message = gr.Textbox(show_label=False, placeholder="Your request to the sidekick")
         with gr.Row():
-            success_criteria = gr.Textbox(show_label=False, placeholder="What are your success criteria?")
+            SuccessCriteria = gr.Textbox(show_label=False,placeholder="What are your success criteria?")
     with gr.Row():
-        reset_button = gr.Button("Reset", elem_id="reset-button")
-        approve_button = gr.Button("Approve and continue", visible=False, elem_id="approve-button")
-        go_button = gr.Button("Go!", elem_id="go-button", interactive=False)
+        ResetButton = gr.Button("Reset", elem_id="reset-button")
+        ## The Approve button is hidden by default; and is only shown when a human-in-the-loop
+        ## approval is required (see process_message/approve above, and sidekick.Paused=True)
+        ApproveButton = gr.Button("Approve and continue", visible=False, elem_id="approve-button")
+        ## This is disabled till Setup() brings up the MCP servers, so that the user cannot
+        ## start a turn before the servers actually exist
+        GoButton = gr.Button("Go!", elem_id="go-button", interactive=False)
+    
+    Timer = gr.Timer(1)
+    ## The timer fires WatchTodos() once every second for the lifetime of the page,
+    ## purely to keep the plan panel live. 
 
-    timer = gr.Timer(1)
-
-    ui.load(setup, [], [sidekick, go_button])
-    timer.tick(watch_todos, [sidekick], [todos_panel], show_progress="hidden")
-    message.submit(process_message, [sidekick, message, success_criteria, chatbot],
-                   [chatbot, approve_button, sidekick])
-    success_criteria.submit(process_message, [sidekick, message, success_criteria, chatbot],
-                            [chatbot, approve_button, sidekick])
-    go_button.click(process_message, [sidekick, message, success_criteria, chatbot],
-                    [chatbot, approve_button, sidekick])
-    approve_button.click(approve, [sidekick, chatbot], [chatbot, approve_button, sidekick])
-    reset_button.click(reset, [sidekick], [message, success_criteria, chatbot, approve_button, sidekick])
-
+    UI.load(Setup, [], [sidekick, GoButton])
+    Timer.tick(WatchTodos, [sidekick], [TodosPanel], show_progress="hidden")
+    Message.submit(ProcessMessage, [sidekick, Message, SuccessCriteria, Chatbot],
+                                   [Chatbot,ApproveButton,sidekick])
+    SuccessCriteria.submit(ProcessMessage, [sidekick,Message,SuccessCriteria,Chatbot],
+                                           [Chatbot,ApproveButton, sidekick])
+    GoButton.click(ProcessMessage, [sidekick, Message, SuccessCriteria, Chatbot],
+                                   [Chatbot, ApproveButton, sidekick])
+    ApproveButton.click(Approve, [sidekick, Chatbot], [Chatbot,ApproveButton,sidekick])
+    ResetButton.click(Reset, [sidekick], [Message, SuccessCriteria, Chatbot, ApproveButton, sidekick])
 
 if __name__ == "__main__":
-    ui.launch(inbrowser=True, **LAUNCH_STYLE)
+    UI.launch(inbrowser=True, **LAUNCH_STYLE)
+

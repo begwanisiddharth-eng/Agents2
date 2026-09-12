@@ -1,7 +1,6 @@
 """Tools for the Sidekick: a mix of MCP servers, ready-made LangChain tools and our own."""
 
 import asyncio
-import os
 from contextlib import AsyncExitStack
 
 import requests
@@ -15,89 +14,129 @@ from langchain_mcp_adapters.tools import load_mcp_tools
 
 load_dotenv(override=True)
 
-# Wikimedia rejects the wikipedia library's default user agent, so identify ourselves properly
-wikipedia.set_user_agent("agentic-track-course (https://edwarddonner.com)")
+# The `wikipedia` package sends a generic default User-Agent header on every
+# HTTP request. Wikimedia's servers reject requests that look like they come
+# from an unidentified bot/script, so we set a descriptive user agent that
+# names the project and gives a contact URL, as Wikimedia's etiquette asks.
+wikipedia.set_user_agent("Agentic AI (https://edwarddonner.com)")
 
-search = GoogleSerperRun(api_wrapper=GoogleSerperAPIWrapper())
-
-wikipedia_lookup = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
-
+Search = GoogleSerperRun(api_wrapper=GoogleSerperAPIWrapper())
+WikipediaLookup = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
 
 @tool
-def send_push_notification(text: str) -> str:
-    """Send a short push notification to the user's phone."""
-    response = requests.post(
-        "https://api.pushover.net/1/messages.json",
-        data={"token": os.getenv("PUSHOVER_TOKEN"), "user": os.getenv("PUSHOVER_USER"), "message": text},
-    )
-    response.raise_for_status()
+def SendPushNotification(Text: str) -> str:
+    "Send a short push notification to the user"
+    Topic = "ross919gain370"
+    URL = f"https://ntfy.sh/{Topic}"
+    Response = requests.post(URL, data=Text.encode(encoding="utf-8"))
+    # raise_for_status() turns a non-2xx HTTP response into a Python exception.
+    # We deliberately do NOT catch that exception here: sidekick.py wraps every
+    # tool call in a `TolerateToolErrors` middleware that converts any raised
+    # exception into a message the agent can read and react to, so there is no
+    # need for defensive try/except inside individual tools. If the response
+    # is a HTPP 2xx response, then then it returns None and the execution carries
+    # onto the next line
+    Response.raise_for_status()
     return "Notification sent"
 
-
 @tool
-def request_human_help(instructions: str) -> str:
-    """Ask the user to do something in the browser window that you cannot do yourself,
-    such as logging in to a site, passing a captcha, or approving two-factor authentication.
-    Explain exactly what you need them to do. The run pauses until they have done it."""
-    return "The user says it is done. Continue with the task."
+def RequestHumanHelp(Instructions: str) -> str:
+    """
+    Ask the user to do something in the browser window that you cannot do yourself,
+    such as logging in to a site, passing a captcha, or approving two-factor
+    authentication. Explain exactly what you need them to do. The run pauses until 
+    they have done it.
+    """
+    # In sidekick.py, `HumanInTheLoopMiddleware` is configured to intercept any
+    # call to this tool (by name) BEFORE it actually runs, and suspend the
+    # agent's execution until a human approves the call from outside (see
+    # Sidekick.resume() in sidekick.py). Once approved, the middleware lets the
+    # call proceed, this function body executes, and the agent sees the return
+    # value below as if the human had just finished what was asked.
+    return "The user says it is done. Please proceed."
 
-
-def mcp_connections(sandbox: str) -> dict:
-    """The MCP servers the Sidekick uses: a headed browser and a sandbox filesystem."""
+def MCPConnections(Sandbox: str) -> dict:
+    """The MCP servers the Sidekick uses: a headed browser and a sandbox filesystem"""
     return {
         "playwright": {
             "transport": "stdio",
             "command": "npx",
-            "args": ["@playwright/mcp@latest", "--isolated"],
+            "args": ["@playwright/mcp@latest", "--isolated"]
         },
         "filesystem": {
             "transport": "stdio",
             "command": "npx",
-            "args": ["-y", "@modelcontextprotocol/server-filesystem", sandbox],
-        },
+            "args": ["-y", "@modelcontextprotocol/server-filesystem", Sandbox]
+        }
     }
 
 
-class McpSessions:
-    """Holds persistent MCP sessions open so the browser keeps its state between tool calls.
-
+class MCPSessions:
+    """Holds persistent MCP sessions open so that the browser keeps its state between tool calls
     The stdio transport must be opened and closed from the same asyncio task, so one
-    background task owns the sessions: it opens them, waits, and unwinds them when stop()
-    is called. Stopping shuts down the servers, and you will see the browser close.
+    background task owns the sessions. It opens them, waits and unwinds them when stop() is
+    called. Stopping shuts down the servers, and the browser will close.
+    If we opened a fresh MCP connection for every single tool call, the Playwright browser
+    would restart (and lose its page/state) each time. Instead we open the connections ONCE,
+    keep the subprocesses and their async context managers alive for the whole Sidekick 
+    session, and tear them down only when Sidekick itself is done (see the cleanup() function in
+    sidekick.py). Because stdio transport pipes are tied to the aysncio process that opened them,
+    there has to be one dedicated background asyncio task, which in this case is the _run() task.
     """
 
-    def __init__(self, connections: dict):
-        self.connections = connections
-        self.tools = []
+    def __init__(self, Connections:dict):
+        self.connections = Connections
+        self.tools = [] ## Filled in with Langchain Tool objects once servers start
+        ## Two asyncio Event flags coordinate the setting up and shutting down of servers
+        ## The asyncio.Event() command implements Event objects. An event manages a flag 
+        # that can be set to true with the set() method and reset to false with the clear() method. 
+        # The wait() method blocks until the flag is true. The flag is initially false.
         self._ready = asyncio.Event()
         self._stop = asyncio.Event()
-        self._task = None
+        self._task = None # The background asyncio task running _run()
 
     async def _run(self):
-        client = MultiServerMCPClient(self.connections)
-        async with AsyncExitStack() as stack:
+        # This coroutine runs as its own background asyncio Task (started in # start(), below)
+        # and lives for as long as the MCP servers should stay connected.
+        Client = MultiServerMCPClient(self.connections)
+        # AsyncExitStack lets us open a *variable* number of async context managers 
+        # (one `client.session(name)` per server) and be sure they are all cleanly closed together, 
+        # in reverse order, when the `async with` block exits -- which happens once `self._stop.wait()`
+        # returns below.
+        async with AsyncExitStack() as Stack:
             for name in self.connections:
-                session = await stack.enter_async_context(client.session(name))
-                self.tools += await load_mcp_tools(session, server_name=name)
+                Session = await Stack.enter_async_context(Client.session(name))
+                self.tools += await load_mcp_tools(Session, server_name=name)
             self._ready.set()
+            # Block here -- keeping the `async with` (and therefore the subprocess connections) open
+            # -- until someone calls stop().
             await self._stop.wait()
 
     async def start(self) -> list:
+        """Launch the MCP servers in the background and wait till their tools are ready"""
         self._task = asyncio.create_task(self._run())
-        ready = asyncio.create_task(self._ready.wait())
-        await asyncio.wait([ready, self._task], return_when=asyncio.FIRST_COMPLETED)
-        ready.cancel()
+        Ready = asyncio.create_task(self._ready.wait())
+        # Wait for whichever happens first: the servers finish starting (`_ready` gets set), 
+        # OR the background task ends early because it crashed while starting up 
+        # (e.g. `npx` failed, a server errored out).
+        await asyncio.wait([Ready, self._task], return_when=asyncio.FIRST_COMPLETED)
+        Ready.cancel() ## The role of the Ready task is done
         if self._task.done():
-            self._task.result()  # the servers failed to start; raise the real error
+            self._task.result() ## The servers failed to start; 
+            ## The error is trasmitted via the result which is then sent to whichever function called start()
         return self.tools
 
     def stop(self):
+        """Signal the background task to shut the MCP servers down"""
         self._stop.set()
+        ## This causes the whole async with Stack to exit, shutting down all servers
+        ## and ending _run()
 
-
-async def get_all_tools(sandbox: str):
-    """Return the full tool list (our tools plus the MCP server tools) and the session holder."""
-    sessions = McpSessions(mcp_connections(sandbox))
-    mcp_tools = await sessions.start()
-    our_tools = [search, send_push_notification, wikipedia_lookup, request_human_help]
-    return our_tools + mcp_tools, sessions
+    
+async def GetAllTools(Sandbox: str):
+    """Return the full tool list (our tools plus the MCP Server tools) and the session holder"""
+    Sessions = MCPSessions(MCPConnections(Sandbox))
+    MCPTools = await Sessions.start()
+    OverallTools = [Search, SendPushNotification,WikipediaLookup,RequestHumanHelp]
+    return OverallTools + MCPTools, Sessions ## We need to return Sessions class instance
+    ## since stop() will be called on it
