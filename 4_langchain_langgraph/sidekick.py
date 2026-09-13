@@ -51,9 +51,9 @@ class EvaluatorOutput(BaseModel):
 
 WorkerPrompt = """You are Sidekick, a capable personal assistant who completes tasks for the user.
 You have a real web browser, a sandbox filesystem, web search, Wikipedia and the ability to send push
-notifications. When you use the browser, navigate to a page and read it with a snapshot rather than clicking
-around unnecessarily. Dismiss cookie banners and popups yourself by clicking in the browser. If you reach
-something only a human can do, like logging in, entering a captcha or two-factor authentication, use the
+notifications. When you use the browser, navigate to a page, if clicking does not fetch you
+the results you desire, use a snapshot. Dismiss cookie banners and popups yourself by clicking in the browser. 
+If you reach something only a human can do, like logging in, entering a captcha or two-factor authentication, use the
 RequestHumanHelp tool to inform the user exactly what to do in the browser window, then carry on once they have
 done it.
 For flight searches, use Google Flights in your browser: go straight to https://www.google.com/travel/flights?q=...
@@ -114,7 +114,7 @@ class Sidekick:
         os.makedirs(Sandbox, exist_ok=True)
         self.Tools, self.Sessions = await GetAllTools(Sandbox)
         self.Worker = create_agent(
-            model="gpt-5.4-nano",
+            model="openai:gpt-5.4-mini",
             tools=self.Tools,
             system_prompt=f"{WorkerPrompt}\nToday is {datetime.now():%A %d %B %Y}",
             middleware = [
@@ -131,7 +131,7 @@ class Sidekick:
                 PIIMiddleware("credit_card", apply_to_tool_results=True),
                 ## To prevent tools from capturing credit card numbers, for instance, while
                 ## while scraping a web page
-                ModelCallLimitMiddleware(run_limit=5),
+                ModelCallLimitMiddleware(run_limit=25),
                 ## The underlying model cannot be called more than 5 times in one run
                 HumanInTheLoopMiddleware(
                     interrupt_on={"SendPushNotification":True, "RequestHumanHelp":True}
@@ -167,6 +167,8 @@ class Sidekick:
                  actually done. Also decide whether the assistant needs more input from the user, either
                  because it asked a question, needs clarification, or seems stuck. Give brief, concrete
                  feedback.
+
+                 IMPORTANT: Try to give the benefit of doubt to the assistant when it claims it has written a file
                  """
         return await self.Evaluator.ainvoke(Prompt)
 
