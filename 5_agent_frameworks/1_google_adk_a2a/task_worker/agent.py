@@ -56,7 +56,6 @@ def SendPushNotification(Message: str) -> str:
     Response = requests.post(URL, data=Message.encode(encoding="utf-8"))
     return f"Push notification sent with API return code {Response.status_code}"
 
-
 Filesystem = McpToolset(
     connection_params=StdioConnectionParams(
         server_params = StdioServerParameters(
@@ -70,7 +69,6 @@ Filesystem = McpToolset(
 )
 
 ## END DEFINTION OF TOOLS
-
 INSTRUCTIONS = """
                You are a careful worker with a shared Todo board and a set of file tools.
                Take the pending goal and see it through. Begin by laying out a short plan.

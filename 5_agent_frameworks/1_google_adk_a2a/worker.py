@@ -9,8 +9,6 @@ done. This is exactly how a worker runs on Day 5, just with one goal
     uv run worker.py --seed-only    # Just seed, then drive is from 'adk web'
 """
 
-
-
 from __future__ import annotations
 
 import sys
@@ -91,3 +89,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
