@@ -17,8 +17,6 @@ of the board alone.
 from __future__ import annotations
 
 import sys
-
-from pydantic_ai.agent.abstract import Instructions
 sys.stdout.reconfigure(encoding="utf-8") ## Because the computer's default encoding is cp1252
 
 import asyncio
