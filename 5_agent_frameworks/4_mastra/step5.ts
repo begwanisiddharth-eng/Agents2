@@ -16,10 +16,10 @@ import "./env.ts";
 import { join } from "node:path";
 import { mkdirSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { Agent } from "@mastra/core/agent";
-import { boardTools, makeFilesystem, WORKSPACE } from "./tools.ts";
-import { resetBoard, addGoal, claimTodo, showBoard } from "./board.ts";
+import { boardTools, makeFilesystem, Workspace } from "./tools.ts";
+import { ResetBoard, AddGoal, ClaimTodo, ShowBoard } from "./board.ts";
 
-const GOAL = "Read notes.txt, translate its contents into natural Spanish, and write the Spanish to spanish.txt.";
+const Goal = "Read notes.txt, translate its contents into natural Hindi, and write the Hindi to hindi.txt.";
 
 const INSTRUCTIONS = `
 You are a careful worker with a shared todo board and a set of file tools.
@@ -28,31 +28,31 @@ Take the pending goal and see it through. Begin by laying out a short plan: the 
 `;
 
 // Seed the board with the one goal and clear any old output.
-mkdirSync(WORKSPACE, { recursive: true });
-rmSync(join(WORKSPACE, "spanish.txt"), { force: true });
-resetBoard();
-const goalId = addGoal(GOAL);
-claimTodo(goalId); // the worker picks up the goal: pending -> in_progress
-console.log(`Seeded goal ${goalId}: ${GOAL}\n`);
+mkdirSync(Workspace, { recursive: true });
+rmSync(join(Workspace, "hindi.txt"), { force: true });
+ResetBoard();
+const GoalId = AddGoal(Goal);
+ClaimTodo(GoalId); // the worker picks up the goal: pending -> in_progress
+console.log(`Seeded goal ${GoalId}: ${Goal}\n`);
 
 
-const filesystem = makeFilesystem();
-const worker = new Agent({
+const Filesystem = makeFilesystem();
+const Worker = new Agent({
   id: "worker",
   name: "Worker",
   instructions: INSTRUCTIONS,
   model: "openai/gpt-5.4-mini",
-  tools: { ...boardTools, ...(await filesystem.listTools()) },
+  tools: { ...boardTools, ...(await Filesystem.listTools()) },
 });
 
-await worker.generate("Please work the pending goal on the board.", { maxSteps: 25 });
-await filesystem.disconnect();
+await Worker.generate("Please work the pending goal on the board.", { maxSteps: 25 });
+await Filesystem.disconnect();
 
 console.log("\nBoard after the run:");
-showBoard();
-const spanish = join(WORKSPACE, "spanish.txt");
-if (existsSync(spanish)) {
-  console.log("\nspanish.txt:\n" + readFileSync(spanish, "utf-8"));
+ShowBoard();
+const Hindi = join(Workspace, "hindi.txt");
+if (existsSync(Hindi)) {
+  console.log("\nhindi.txt:\n" + readFileSync(Hindi, "utf-8"));
 }
 
 process.exit(0); // Mastra keeps its model connection pool open, so exit once the work is done

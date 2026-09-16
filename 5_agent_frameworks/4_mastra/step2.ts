@@ -13,10 +13,10 @@ const agent = new Agent({
   id: "assistant",
   name: "Assistant",
   instructions: "You are a concise, friendly assistant. Reply in a single short sentence.",
-  model: "openai/gpt-5.4-mini",
+  model: "openai/gpt-5.4-nano",
 });
 
-const reply = await agent.generate("Say hello in Spanish.");
+const reply = await agent.generate("Say hello in Hindi.");
 console.log(reply.text);
 
 process.exit(0); // Mastra keeps its model connection pool open, so exit once the work is done

@@ -18,7 +18,7 @@ import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-export const BOARD_PATH =
+export const BoardPath =
   process.env.BOARD_PATH ?? join(dirname(fileURLToPath(import.meta.url)), "board.sqlite");
 
 export interface Todo {
@@ -29,7 +29,7 @@ export interface Todo {
   result: string;
 }
 
-function connect(path = BOARD_PATH): DatabaseSync {
+function _connect(path = BoardPath): DatabaseSync {
   const db = new DatabaseSync(path);
   db.exec("PRAGMA journal_mode=WAL");
   db.exec("PRAGMA busy_timeout=5000");
@@ -37,10 +37,10 @@ function connect(path = BOARD_PATH): DatabaseSync {
 }
 
 /** Create a fresh, empty board, dropping anything already there. */
-export function resetBoard(path = BOARD_PATH): void {
-  const db = connect(path);
-  db.exec("DROP TABLE IF EXISTS todos");
-  db.exec(`CREATE TABLE todos (
+export function ResetBoard(path = BoardPath): void {
+  const db = _connect(path);
+  db.exec("DROP TABLE IF EXISTS Todos");
+  db.exec(`CREATE TABLE Todos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     parent_id INTEGER,
     task TEXT NOT NULL,
@@ -51,40 +51,40 @@ export function resetBoard(path = BOARD_PATH): void {
 }
 
 /** Add a top-level goal to the board and return its id. */
-export function addGoal(task: string, path = BOARD_PATH): number {
-  const db = connect(path);
-  const id = db.prepare("INSERT INTO todos (task) VALUES (?)").run(task).lastInsertRowid;
+export function AddGoal(task: string, path = BoardPath): number {
+  const db = _connect(path);
+  const id = db.prepare("INSERT INTO Todos (task) VALUES (?)").run(task).lastInsertRowid;
   db.close();
   return Number(id);
 }
 
 /** Add a step under a goal and return its id. */
-export function addStep(goalId: number, task: string, path = BOARD_PATH): number {
-  const db = connect(path);
-  const id = db.prepare("INSERT INTO todos (parent_id, task) VALUES (?, ?)").run(goalId, task).lastInsertRowid;
+export function AddStep(goalId: number, task: string, path = BoardPath): number {
+  const db = _connect(path);
+  const id = db.prepare("INSERT INTO Todos (parent_id, task) VALUES (?, ?)").run(goalId, task).lastInsertRowid;
   db.close();
   return Number(id);
 }
 
 /** Return every todo on the board, goals and steps, oldest first. */
-export function listTodos(path = BOARD_PATH): Todo[] {
-  const db = connect(path);
-  const rows = db.prepare("SELECT id, parent_id, task, status, result FROM todos ORDER BY id").all();
+export function ListTodos(path = BoardPath): Todo[] {
+  const db = _connect(path);
+  const rows = db.prepare("SELECT id, parent_id, task, status, result FROM Todos ORDER BY id").all();
   db.close();
   return rows as unknown as Todo[]; // node:sqlite types rows as unknown, so the cast is the honest minimum
 }
 
 /** Mark a todo as in progress, so a worker can show it has picked it up. */
-export function claimTodo(taskId: number, path = BOARD_PATH): void {
-  const db = connect(path);
-  db.prepare("UPDATE todos SET status = 'in_progress' WHERE id = ?").run(taskId);
+export function ClaimTodo(taskId: number, path = BoardPath): void {
+  const db = _connect(path);
+  db.prepare("UPDATE Todos SET status = 'in_progress' WHERE id = ?").run(taskId);
   db.close();
 }
 
 /** Mark a todo as done and record its result. */
-export function completeTodo(taskId: number, result: string, path = BOARD_PATH): void {
-  const db = connect(path);
-  db.prepare("UPDATE todos SET status = 'done', result = ? WHERE id = ?").run(result, taskId);
+export function CompleteTodo(taskId: number, result: string, path = BoardPath): void {
+  const db = _connect(path);
+  db.prepare("UPDATE Todos SET status = 'done', result = ? WHERE id = ?").run(result, taskId);
   db.close();
 }
 
@@ -97,19 +97,19 @@ const STRIKE = "\x1b[9m";
 /**
  * Print the board for a human: each goal with its steps indented beneath, done
  * todos struck through in green and anything in progress in yellow. This is just
- * a pretty view; the agent's show_todos tool still gets plain objects.
+ * a pretty view; the agent's ShowTodos tool still gets plain objects.
  */
-export function showBoard(path = BOARD_PATH): void {
-  const todos = listTodos(path);
+export function ShowBoard(path = BoardPath): void {
+  const todos = ListTodos(path);
   for (const goal of todos.filter((t) => t.parent_id === null)) {
-    console.log(formatLine(goal, "Goal", ""));
+    console.log(_format(goal, "Goal", ""));
     for (const step of todos.filter((t) => t.parent_id === goal.id)) {
-      console.log(formatLine(step, "Step", "  "));
+      console.log(_format(step, "Step", "  "));
     }
   }
 }
 
-function formatLine(todo: Todo, kind: string, indent: string): string {
+function _format(todo: Todo, kind: string, indent: string): string {
   const label = `${indent}${kind} #${todo.id}: ${todo.task}`;
   if (todo.status === "done") {
     const result = todo.result ? `  ${DIM}${todo.result}${RESET}` : "";

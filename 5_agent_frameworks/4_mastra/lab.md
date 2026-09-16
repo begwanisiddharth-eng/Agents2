@@ -45,7 +45,7 @@ Run every step below from a terminal in **this Mastra directory**. Each one is `
 
 ## Our project this week: a SQLite todo board
 
-Open `board.ts`. It is the TypeScript twin of the `board.py` from Days 1 to 3: one file, one table, no server to run, using Node's built-in `node:sqlite`. A worker is handed one **goal**; to reach it, it writes its own **step** todos under that goal, ticks each one off as it goes, and closes the goal at the end. `showBoard()` prints it in the rich style from Week 1, each goal with its steps indented beneath, done todos struck through in green.
+Open `board.ts`. It is the TypeScript twin of the `board.py` from Days 1 to 3: one file, one table, no server to run, using Node's built-in `node:sqlite`. A worker is handed one **goal**; to reach it, it writes its own **step** todos under that goal, ticks each one off as it goes, and closes the goal at the end. `ShowBoard()` prints it in the rich style from Week 1, each goal with its steps indented beneath, done todos struck through in green.
 
 Then open `tools.ts`. It holds the three board tools, written the Mastra way with `createTool` and a zod input schema: `show_todos` to read the board, `plan_steps` to break a goal into steps, and `complete_task` to mark a todo done. It also has `makeFilesystem`, the filesystem MCP server we add in step 4.
 
@@ -71,13 +71,13 @@ You should see a short Spanish greeting, something like `Hola.`
 
 ## Step 3: Add tools
 
-Open `step3.ts`. We give an agent the board tools from `tools.ts`, seed a goal, and ask what is on the board. Watch it decide, on its own, to call `show_todos` before it answers: that decide, call, read, answer is the agent loop starting to turn. All three tools come together in step 5.
+Open `step3.ts`. We give an agent the board tools from `tools.ts`, seed a goal, and ask what is on the board. Watch it decide, on its own, to call `ShowTodos` before it answers: that decide, call, read, answer is the agent loop starting to turn. All three tools come together in step 5.
 
 ```bash
 npm run step3
 ```
 
-The agent reports the one pending goal, then `showBoard()` prints it beneath.
+The agent reports the one pending goal, then `ShowBoard()` prints it beneath.
 
 ## Step 4: Add MCP
 
@@ -99,7 +99,7 @@ Open `step5.ts`. Now the payoff. Give one agent all three board tools and the fi
 npm run step5
 ```
 
-Watch the board fill with steps and then strike through in green, with the Spanish written into `workspace/spanish.txt`.
+Watch the board fill with steps and then strike through in green, with the Hindi written into `workspace/hindi.txt`.
 
 ## The one cool thing: Studio
 
@@ -109,7 +109,7 @@ Mastra's developer experience is its calling card, and Studio is the centerpiece
 npm run dev
 ```
 
-then open `http://localhost:4111`. Pick the Worker agent and ask it to work the goal on the board. It reads the English note waiting there, translates it into Spanish, marks the goal done with the translation, and replies with it, while each model step, each tool call and each result renders live, with full traces you can replay. You can switch models and adjust settings in the same panel.
+then open `http://localhost:4111`. Pick the Worker agent and ask it to work the goal on the board. It reads the English note waiting there, translates it into Hindi, marks the goal done with the translation, and replies with it, while each model step, each tool call and each result renders live, with full traces you can replay. You can switch models and adjust settings in the same panel.
 
 Two asides in the same spirit as the rest of the week. The model is a routing string, so pointing the worker at any OpenAI-compatible endpoint is a one-line change; `SWAP_AI.md` in this folder shows it. And Mastra has first-class native A2A: any agent you register is automatically exposed with an agent card and a JSON-RPC endpoint, with no extra work. We do not build with A2A this week, but it is a nice thing to get for free.
 

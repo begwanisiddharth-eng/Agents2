@@ -1,0 +1,6 @@
+Bienvenido al equipo.
+
+Hoy estamos construyendo un pequeño tutor de idiomas, pieza por pieza. Cada ayudante
+elige una sola tarea de la pizarra compartida, realiza el trabajo con cuidado y marca
+la tarea como completada. Lee tu tarea con atención, tómate tu tiempo y haz
+lo mejor que puedas.

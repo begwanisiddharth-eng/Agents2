@@ -3,8 +3,8 @@
  * needs.
  *
  * Run bare (npm run worker), it seeds and works its own goal (read notes.txt,
- * translate to Spanish, write spanish.txt): plan the steps on the board, read the
- * file through the filesystem MCP server, translate, write the Spanish back, and tick
+ * translate to Hindi, write hindi.txt): plan the steps on the board, read the
+ * file through the filesystem MCP server, translate, write the Hindi back, and tick
  * each step off before closing the goal. The onStepFinish callback prints each tool
  * call as it happens, so you can watch the loop turn.
  *
@@ -23,17 +23,17 @@ import "./env.ts";
 import { join, dirname } from "node:path";
 import { mkdirSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { Agent } from "@mastra/core/agent";
-import { boardTools, makeFilesystem, WORKSPACE } from "./tools.ts";
-import { resetBoard, addGoal, claimTodo, showBoard, BOARD_PATH } from "./board.ts";
+import { boardTools, makeFilesystem, Workspace } from "./tools.ts";
+import { ResetBoard, AddGoal, ClaimTodo, ShowBoard, BoardPath } from "./board.ts";
 
 // Day 5 mode is "<taskId> <boardPath>". Run bare (npm run worker), none of this fires.
 const args = process.argv.slice(2);
-const TASK_ID = args.length >= 2 ? Number(args[0]) : null;
+const TaskId = args.length >= 2 ? Number(args[0]) : null;
 // File tools write into this worker's own workspace when standalone, or the shared
 // site (the board file's folder) when working a Day 5 task.
-const WORK_DIR = TASK_ID === null ? WORKSPACE : dirname(BOARD_PATH);
+const WorkDir = TaskId === null ? Workspace : dirname(BoardPath);
 
-const GOAL = "Read notes.txt, translate its contents into natural Spanish, and write the Spanish to spanish.txt.";
+const Goal = "Read notes.txt, translate its contents into natural Hindi, and write the Hindi to hindi.txt.";
 
 const INSTRUCTIONS = `
 You are a careful worker with a shared todo board and a set of file tools.
@@ -43,53 +43,53 @@ Take the pending goal and see it through. Begin by laying out a short plan: the 
 
 /** Reset the board, clear any old output, and add the one goal. */
 function seed(): number {
-  mkdirSync(WORKSPACE, { recursive: true });
-  rmSync(join(WORKSPACE, "spanish.txt"), { force: true });
-  resetBoard();
-  const goalId = addGoal(GOAL);
-  claimTodo(goalId); // the worker picks up the goal: pending -> in_progress
-  return goalId;
+  mkdirSync(Workspace, { recursive: true });
+  rmSync(join(Workspace, "hindi.txt"), { force: true });
+  ResetBoard();
+  const GoalId = AddGoal(Goal);
+  ClaimTodo(GoalId); // the worker picks up the goal: pending -> in_progress
+  return GoalId;
 }
 
-let message: string;
-if (TASK_ID === null) {
-  const goalId = seed();
-  console.log(`Seeded goal ${goalId}: ${GOAL}\n`);
-  message = "Please work the pending goal on the board.";
+let Message: string;
+if (TaskId === null) {
+  const GoalId = seed();
+  console.log(`Seeded goal ${GoalId}: ${Goal}\n`);
+  Message = "Please work the pending goal on the board.";
 } else {
-  claimTodo(TASK_ID); // light up this one task on the shared board
-  message =
-    `You have claimed task #${TASK_ID} on the shared board. Work only that task and its steps. ` +
-    `When the work is built and checked, mark task #${TASK_ID} itself done with complete_task, then stop.`;
+  ClaimTodo(TaskId); // light up this one task on the shared board
+  Message =
+    `You have claimed task #${TaskId} on the shared board. Work only that task and its steps. ` +
+    `When the work is built and checked, mark task #${TaskId} itself done with CompleteTask, then stop.`;
 }
 
-const filesystem = makeFilesystem(WORK_DIR);
-const worker = new Agent({
+const Filesystem = makeFilesystem(WorkDir);
+const Worker = new Agent({
   id: "worker",
   name: "Worker",
   instructions: INSTRUCTIONS,
   model: "openai/" + (process.env.WORKER_MODEL ?? "gpt-5.4-mini"),
-  tools: { ...boardTools, ...(await filesystem.listTools()) },
+  tools: { ...boardTools, ...(await Filesystem.listTools()) },
 });
 
-await worker.generate(message, {
+await Worker.generate(Message, {
   maxSteps: 25,
   onStepFinish: (step: { toolCalls?: { payload: { toolName: string; args?: unknown } }[] }) => {
-    if (TASK_ID !== null) return; // on Day 5 the orchestrator owns the console
+    if (TaskId !== null) return; // on Day 5 the orchestrator owns the console
     for (const call of step.toolCalls ?? []) {
       console.log(`  called ${call.payload.toolName}(${JSON.stringify(call.payload.args)})`);
     }
   },
 });
-await filesystem.disconnect();
+await Filesystem.disconnect();
 
-if (TASK_ID === null) {
+if (TaskId === null) {
   // standalone: show the result; on Day 5 the orchestrator renders the shared board
   console.log("\nBoard after the run:");
-  showBoard();
-  const spanish = join(WORKSPACE, "spanish.txt");
-  if (existsSync(spanish)) {
-    console.log("\nspanish.txt:\n" + readFileSync(spanish, "utf-8"));
+  ShowBoard();
+  const Hindi = join(Workspace, "hindi.txt");
+  if (existsSync(Hindi)) {
+    console.log("\nhindi.txt:\n" + readFileSync(Hindi, "utf-8"));
   }
 }
 
