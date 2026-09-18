@@ -14,6 +14,7 @@ from quiet import silence
 silence()
 
 from google.adk.agents import LlmAgent  # noqa: E402
+from google.adk.models.lite_llm import LiteLlm
 from google.adk.runners import InMemoryRunner  # noqa: E402
 from google.genai import types  # noqa: E402
 
@@ -68,7 +69,7 @@ async def _ask(prompt: str) -> str:
     """Run one stateless ADK agent turn and return its text, stripped of code fences."""
     agent = LlmAgent(
         name="art_director",
-        model=config.ORCHESTRATOR_MODEL,
+        model=LiteLlm("/".join(["openai", config.ORCHESTRATOR_MODEL])),
         instruction="You are a precise front-end designer. Return only the file contents asked for.",
     )
     runner = InMemoryRunner(agent=agent, app_name=_APP)
