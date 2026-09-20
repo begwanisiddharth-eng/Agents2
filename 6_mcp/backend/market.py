@@ -29,6 +29,12 @@ Open, Close = time(9,15), time(15,30)
 for Name in ("httpx", "mcp.client"):
     logging.getLogger(Name).setLevel(logging.WARNING)
 
+## Create a dedicated exception for the Tapetide API, so that "Tapetide answered but rejected the request"
+## (for example an unknown symbol or an empty symbol) can be told apart from "Tapetide could not be reached".
+## ValueError cannot be used for this, because json.loads and float() also raise ValueError subclasses.
+class TapetideError(Exception):
+    """Tapetide answered but rejected the request, for example an unknown symbol"""
+
 async def CallTool(Tool: str, Args: dict) -> dict:
     """Call one Tapetide MCP tool in a short-lived session and return its parsed JSON"""
     Params = {
@@ -41,15 +47,19 @@ async def CallTool(Tool: str, Args: dict) -> dict:
         Result = await Server.call_tool(Tool,Args)
     Text = Result.content[0].text
     if Result.isError:
-        raise ValueError(Text)
+        raise TapetideError(Text)
     return json.loads(Text)
 
 async def GetSharePriceAsync(Symbol: str) -> float:
-    """Return the current price for an NSE symbol from Tapetide, or a simulated price without a token or if the API fails"""
+    """Return the current price for an NSE symbol from Tapetide, or a simulated price without a token or if the Tapetide
+    API cannot be invoked. If the Tapetide API can be invoked and errors, it is because Tapetide rejects the request and a
+    TapetideError will be raised. One of the cases in which this can arise is if the Symbol is a wrong one"""
     if TapetideAPIKey:
         try:
             Quote = await CallTool("get_stock_quote", {"symbol": Symbol})
             return float(Quote["data"]["price"])
+        except TapetideError:
+            raise
         except Exception as e:
             print(f"Tapetide API unavailable ({e}); using a simulated price")
     return SimulatedPrice(Symbol)
