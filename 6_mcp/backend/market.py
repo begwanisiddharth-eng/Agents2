@@ -1,68 +1,67 @@
-"""Share prices from the Massive market data API, or a simulator when no key is set.
+"""Share prices from the Tapetide market data API, or a simulator when no key is set.
 
-Set MASSIVE_API_KEY to use live data. Without it, prices come from market_simulator
+Set TAPETIDE_TOKEN to use live data. Without it, prices come from market_simulator
 so the whole trading floor still runs out of the box.
 """
 
+from agents.mcp import MCPServerStreamableHttp
+import asyncio
+import json
+import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, time, timedelta, timezone
+
 from dotenv import load_dotenv
-from massive import RESTClient
-from .market_simulator import simulated_price
+
+from .market_simulator import SimulatedPrice
 
 load_dotenv(override=True)
 
-massive_api_key = os.getenv("MASSIVE_API_KEY")
+TapetideAPIKey = os.getenv("TAPETIDE_TOKEN")
 
+TapetideURL = "https://mcp.tapetide.com/mcp"
+Timeout = 60
+IST = timezone(timedelta(hours=5, minutes=30))
+Open, Close = time(9,15), time(15,30)
 
-def _last_trade(client: RESTClient, symbol: str) -> float:
-    return float(client.get_last_trade(symbol).price)
+## FastMCP puts every logger at INFO, so each price lookup would print about 30 lines of HTTP and handshake detail
+for Name in ("httpx", "mcp.client"):
+    logging.getLogger(Name).setLevel(logging.WARNING)
 
+async def CallTool(Tool: str, Args: dict) -> dict:
+    """Call one Tapetide MCP tool in a short-lived session and return its parsed JSON"""
+    Params = {
+        "url":TapetideURL,
+        "timeout":Timeout,
+        "headers": {"Authorization":f"Bearer {TapetideAPIKey}"},
+        "terminate_on_close": False  ## Tapetide answers 405 to the session DELETE, so skip it
+    }
+    async with MCPServerStreamableHttp(params=Params, client_session_timeout_seconds=Timeout) as Server:
+        Result = await Server.call_tool(Tool,Args)
+    Text = Result.content[0].text
+    if Result.isError:
+        raise ValueError(Text)
+    return json.loads(Text)
 
-def _snapshot(client: RESTClient, symbol: str) -> float:
-    snapshot = client.get_snapshot_ticker("stocks", symbol)
-    return float(snapshot.min.close or snapshot.prev_day.close)
-
-
-def _previous_close(client: RESTClient, symbol: str) -> float:
-    return float(client.get_previous_close_agg(symbol)[0].close)
-
-
-# Best price first, prior close last. Lower tier plans reject the earlier calls,
-# so we remember the first tier that works and start there next time.
-price_methods = [_last_trade, _snapshot, _previous_close]
-plan_tier = 0
-
-
-def get_share_price(symbol: str) -> float:
-    """Return the current price for a symbol, from Massive or the simulator."""
-    if massive_api_key:
+async def GetSharePriceAsync(Symbol: str) -> float:
+    """Return the current price for an NSE symbol from Tapetide, or a simulated price without a token or if the API fails"""
+    if TapetideAPIKey:
         try:
-            return get_share_price_massive(symbol)
+            Quote = await CallTool("get_stock_quote", {"symbol": Symbol})
+            return float(Quote["data"]["price"])
         except Exception as e:
-            print(f"Massive API unavailable ({e}); using a simulated price")
-    return simulated_price(symbol)
+            print(f"Tapetide API unavailable ({e}); using a simulated price")
+    return SimulatedPrice(Symbol)
 
+def GetSharePrice(Symbol: str) -> float:
+    """Sync wrapper around GetSharePriceAsync. Runs in a worker thread so it also works inside a running event loop"""
+    with ThreadPoolExecutor(max_workers=1) as Pool:
+        return Pool.submit(asyncio.run, GetSharePriceAsync(Symbol)).result()
 
-def get_share_price_massive(symbol: str) -> float:
-    """Best price the plan allows, remembering the working tier to avoid repeat failures."""
-    global plan_tier
-    client = RESTClient(massive_api_key)
-    for tier in range(plan_tier, len(price_methods)):
-        try:
-            price = price_methods[tier](client, symbol)
-            plan_tier = tier
-            return price
-        except Exception:
-            continue
-    raise RuntimeError(f"No Massive price available for {symbol}")
-
-
-def is_market_open() -> bool:
-    """Whether the US market is open; True on simulated data or if Massive is unreachable."""
-    if not massive_api_key:
+def IsMarketOpen() -> bool:
+    """Whether NSE is open (Mon-Fri 09:15-15:30 IST, holidays ignored); always True on simulated data"""
+    if not TapetideAPIKey:
         return True
-    try:
-        client = RESTClient(massive_api_key)
-        return client.get_market_status().market == "open"
-    except Exception:
-        return True
+    Now = datetime.now(IST)
+    return Now.weekday() < 5 and Open <= Now.time() <= Close

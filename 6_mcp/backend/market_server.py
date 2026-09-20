@@ -1,16 +1,16 @@
 from mcp.server.fastmcp import FastMCP
-from .market import get_share_price
+from .market import GetSharePriceAsync
 
-mcp = FastMCP("market_server")
+mcp = FastMCP("market_server", log_level="WARNING")
 
 @mcp.tool()
-async def lookup_share_price(symbol: str) -> float:
-    """This tool provides the current price of the given stock symbol.
+async def LookupSharePrice(Symbol: str) -> float:
+    """This tool provides the current prices of the given stock symbol
 
     Args:
-        symbol: the symbol of the stock
+        Symbol: The symbol of the stock
     """
-    return get_share_price(symbol)
+    return await GetSharePriceAsync(Symbol)
 
-if __name__ == "__main__":
+if __name__=="__main__":
     mcp.run(transport='stdio')
