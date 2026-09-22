@@ -3,52 +3,39 @@ from typing import List
 import asyncio
 from .tracers import LogTracer
 from agents import add_trace_processor
-from .market import is_market_open
+from .market import IsMarketOpen
 from dotenv import load_dotenv
 import os
 
 load_dotenv(override=True)
 
-RUN_EVERY_N_MINUTES = int(os.getenv("RUN_EVERY_N_MINUTES", "60"))
-RUN_EVEN_WHEN_MARKET_IS_CLOSED = (
-    os.getenv("RUN_EVEN_WHEN_MARKET_IS_CLOSED", "false").strip().lower() == "true"
-)
-USE_MANY_MODELS = os.getenv("USE_MANY_MODELS", "false").strip().lower() == "true"
+RUN_EVERY_N_MINUTES = float(os.getenv("RUN_EVERY_N_MINUTES","60"))
+## float, not int: 90s = 1.5 minutes needs a fractional value, which int() cannot parse
+RUN_EVEN_WHEN_MARKET_IS_CLOSED = (os.getenv("RUN_EVEN_WHEN_MARKET_IS_CLOSED", "false").strip().lower() == "true")
+## USE_MANY_MODELS = os.getenv("USE_MANY_MODELS","false").strip().lower() == "true"
 
-names = ["Warren", "George", "Ray", "Cathie"]
-lastnames = ["Patience", "Bold", "Systematic", "Crypto"]
+Names = ["Prashant","Rakesh","Madhu"]
+LastNames = ["Patience", "Bold", "Systematic"]
 
-if USE_MANY_MODELS:
-    model_names = [
-        "gpt-5.5",
-        "deepseek-v4-flash",
-        "gemini-3.5-flash",
-        "grok-4.3",
-    ]
-    short_model_names = ["GPT 5.5", "DeepSeek V4", "Gemini 3.5 Flash", "Grok 4.3"]
-else:
-    model_names = ["gpt-5.4-mini"] * 4
-    short_model_names = ["GPT 5.4 mini"] * 4
+ModelNames = ["gpt-5.4-nano"] * 3
+ShortModelNames = ["GPT 5.4 Nano"] * 3
 
+def CreateTraders() -> List[Trader]:
+    Traders = []
+    for Name, LastName, ModelName in zip(Names,LastNames,ModelNames):
+        Traders.append(Trader(Name,LastName,ModelName))
+    return Traders
 
-def create_traders() -> List[Trader]:
-    traders = []
-    for name, lastname, model_name in zip(names, lastnames, model_names):
-        traders.append(Trader(name, lastname, model_name))
-    return traders
-
-
-async def run_every_n_minutes():
+async def RunEveryNMinutes():
     add_trace_processor(LogTracer())
-    traders = create_traders()
+    Traders = CreateTraders()
     while True:
-        if RUN_EVEN_WHEN_MARKET_IS_CLOSED or is_market_open():
-            await asyncio.gather(*[trader.run() for trader in traders])
+        if RUN_EVEN_WHEN_MARKET_IS_CLOSED or IsMarketOpen():
+            await asyncio.gather(*[Trader.Run() for Trader in Traders])
         else:
-            print("Market is closed, skipping run")
-        await asyncio.sleep(RUN_EVERY_N_MINUTES * 60)
-
+            print ("Market is closed. Skipping run")
+        await asyncio.sleep(RUN_EVERY_N_MINUTES*60)
 
 if __name__ == "__main__":
-    print(f"Starting scheduler to run every {RUN_EVERY_N_MINUTES} minutes")
-    asyncio.run(run_every_n_minutes())
+    print (f"Starting scheduler to run every {RUN_EVERY_N_MINUTES} minutes")
+    asyncio.run(RunEveryNMinutes())

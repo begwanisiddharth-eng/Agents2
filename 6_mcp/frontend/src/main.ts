@@ -6,7 +6,7 @@ import { TraderPanel } from "./panel";
 import { TraderState } from "./state";
 import { initTheme } from "./theme";
 
-const DATA_POLL_MS = 6000;
+const DATA_POLL_MS = 15000;
 const LOG_POLL_MS = 2000;
 
 initTheme(document.getElementById("btn-theme") as HTMLButtonElement);
@@ -21,7 +21,7 @@ async function loadMarket(): Promise<void> {
     const badge = document.getElementById("market-badge")!;
     badge.dataset.source = market.source;
     document.getElementById("market-source")!.textContent =
-      market.source === "massive" ? "Live market" : "Simulated";
+      market.source === "Tapetide" ? "Live market" : "Simulated";
     document.getElementById("market-status")!.textContent = market.is_market_open
       ? "Market open"
       : "Market closed";

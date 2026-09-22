@@ -90,7 +90,7 @@ def ReadLog(Name: str, LastN:int=10):
             '''
             SELECT datetime, type, message FROM logs
             WHERE name = ?
-            ORDER BY datetime DESC
+            ORDER BY datetime DESC, id DESC
             LIMIT ?
             ''', (Name.lower(),LastN))
         return reversed(Cursor.fetchall())

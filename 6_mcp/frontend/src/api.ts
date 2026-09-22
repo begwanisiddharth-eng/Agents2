@@ -48,7 +48,7 @@ export interface LogRow {
 }
 
 export interface MarketInfo {
-  source: "massive" | "simulator";
+  source: "Tapetide" | "Simulator";
   is_market_open: boolean;
 }
 

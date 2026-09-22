@@ -1,124 +1,90 @@
 from contextlib import AsyncExitStack
-from .accounts_client import read_accounts_resource, read_strategy_resource
-from .tracers import make_trace_id
-from agents import Agent, Tool, Runner, OpenAIChatCompletionsModel, trace
-from openai import AsyncOpenAI
-from dotenv import load_dotenv
-import os
+from .accounts_client import ReadAccountResource, ReadStrategyResource
+from .tracers import MakeTraceId
+from agents import Agent, Tool, Runner, trace
 import json
 from .templates import (
-    researcher_instructions,
-    trader_instructions,
-    trade_message,
-    rebalance_message,
-    research_tool,
+    ResearcherInstructions,
+    TraderInstructions,
+    TradeMessage,
+    RebalanceMessage,
+    ResearchTool
 )
-from .mcp_servers import trader_mcp_servers, researcher_mcp_servers
 
-load_dotenv(override=True)
+from .mcp_servers import TraderMCPServers, ResearcherMCPServers
 
-deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
-google_api_key = os.getenv("GOOGLE_API_KEY")
-grok_api_key = os.getenv("GROK_API_KEY")
-openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+MaxTurns = 30
 
-DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
-GROK_BASE_URL = "https://api.x.ai/v1"
-GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-
-MAX_TURNS = 30
-
-openrouter_client = AsyncOpenAI(base_url=OPENROUTER_BASE_URL, api_key=openrouter_api_key)
-deepseek_client = AsyncOpenAI(base_url=DEEPSEEK_BASE_URL, api_key=deepseek_api_key)
-grok_client = AsyncOpenAI(base_url=GROK_BASE_URL, api_key=grok_api_key)
-gemini_client = AsyncOpenAI(base_url=GEMINI_BASE_URL, api_key=google_api_key)
-
-
-def get_model(model_name: str):
-    if "/" in model_name:
-        return OpenAIChatCompletionsModel(model=model_name, openai_client=openrouter_client)
-    elif "deepseek" in model_name:
-        return OpenAIChatCompletionsModel(model=model_name, openai_client=deepseek_client)
-    elif "grok" in model_name:
-        return OpenAIChatCompletionsModel(model=model_name, openai_client=grok_client)
-    elif "gemini" in model_name:
-        return OpenAIChatCompletionsModel(model=model_name, openai_client=gemini_client)
-    else:
-        return model_name
-
-
-async def get_researcher(mcp_servers, model_name) -> Agent:
-    researcher = Agent(
+async def GetResearcher(MCPServers,ModelName) -> Agent:
+    Researcher = Agent(
         name="Researcher",
-        instructions=researcher_instructions(),
-        model=get_model(model_name),
-        mcp_servers=mcp_servers,
+        instructions = ResearcherInstructions(),
+        model = ModelName,
+        mcp_servers = MCPServers
     )
-    return researcher
+    return Researcher
 
 
-async def get_researcher_tool(mcp_servers, model_name) -> Tool:
-    researcher = await get_researcher(mcp_servers, model_name)
-    return researcher.as_tool(tool_name="Researcher", tool_description=research_tool())
-
+async def GetResearcherTool(MCPServers,ModelName) -> Tool:
+    Researcher = await GetResearcher(MCPServers, ModelName)
+    return Researcher.as_tool(tool_name="Researcher", tool_description=ResearchTool())
 
 class Trader:
-    def __init__(self, name: str, lastname="Trader", model_name="gpt-5.4-mini"):
-        self.name = name
-        self.lastname = lastname
-        self.agent = None
-        self.model_name = model_name
-        self.do_trade = True
 
-    async def create_agent(self, trader_mcp_servers, researcher_mcp_servers) -> Agent:
-        tool = await get_researcher_tool(researcher_mcp_servers, self.model_name)
-        self.agent = Agent(
-            name=self.name,
-            instructions=trader_instructions(self.name),
-            model=get_model(self.model_name),
-            tools=[tool],
-            mcp_servers=trader_mcp_servers,
+    def __init__(self, Name: str, LastName="Trader", ModelName="gpt-5.4-nano"):
+        self.Name = Name
+        self.LastName = LastName
+        self.Agent = None
+        self.ModelName = ModelName
+        self.DoTrade = True
+
+    async def CreateAgent(self,TraderMCPServers,ResearcherMCPServers) -> Agent:
+        Tool = await GetResearcherTool(ResearcherMCPServers,self.ModelName)
+        self.Agent = Agent(
+            name = self.Name,
+            instructions = TraderInstructions(self.Name),
+            model =self.ModelName,
+            tools = [Tool],
+            mcp_servers = TraderMCPServers
         )
-        return self.agent
+        return self.Agent
 
-    async def get_account_report(self) -> str:
-        account = await read_accounts_resource(self.name)
-        account_json = json.loads(account)
-        account_json.pop("portfolio_value_time_series", None)
-        return json.dumps(account_json)
+    async def GetAccountReport(self) -> str:
+        AccountJSON = await ReadAccountResource(self.Name)
+        AccountDict = json.loads(AccountJSON)
+        AccountDict.pop("portfolio_value_time_series",None)
+        ## AccountDict now holds the Account fields (name, balance, strategy, holdings, transactions) plus
+        ## "total_portfolio_value" and "total_profit_loss". The time series is dropped because it grows on every
+        ## Report() call, only the dashboard chart uses it, and it would otherwise be sent to the model as prompt text
+        return json.dumps(AccountDict)
 
-    async def run_agent(self, trader_mcp_servers, researcher_mcp_servers):
-        self.agent = await self.create_agent(trader_mcp_servers, researcher_mcp_servers)
-        account = await self.get_account_report()
-        strategy = await read_strategy_resource(self.name)
-        message = (
-            trade_message(self.name, strategy, account)
-            if self.do_trade
-            else rebalance_message(self.name, strategy, account)
+    async def RunAgent(self, TraderMCPServers, ResearcherMCPServers):
+        self.Agent = await self.CreateAgent(TraderMCPServers, ResearcherMCPServers)
+        AccountJSON = await self.GetAccountReport() ## This will be a string representation of a JSON object,
+        ## and models are good at interpreting JSON
+        AccountStrategy = await ReadStrategyResource(self.Name)
+        Message = (
+            TradeMessage(self.Name, AccountStrategy, AccountJSON) 
+            if self.DoTrade
+            else RebalanceMessage(self.Name, AccountStrategy, AccountJSON)
         )
-        await Runner.run(self.agent, message, max_turns=MAX_TURNS)
+        await Runner.run(self.Agent,Message,max_turns=MaxTurns)
 
-    async def run_with_mcp_servers(self):
-        async with AsyncExitStack() as stack:
-            trader_servers = [
-                await stack.enter_async_context(server) for server in trader_mcp_servers()
-            ]
-            researcher_servers = [
-                await stack.enter_async_context(server)
-                for server in researcher_mcp_servers(self.name)
-            ]
-            await self.run_agent(trader_servers, researcher_servers)
+    async def RunWithMCPServers(self):
+        async with AsyncExitStack() as Stack:
+            TraderServers = [await Stack.enter_async_context(Server) for Server in TraderMCPServers()]
+            ResearcherServers = [await Stack.enter_async_context(Server) for Server in ResearcherMCPServers(self.Name)]
+            await self.RunAgent(TraderServers,ResearcherServers)
 
-    async def run_with_trace(self):
-        trace_name = f"{self.name}-trading" if self.do_trade else f"{self.name}-rebalancing"
-        trace_id = make_trace_id(f"{self.name.lower()}")
-        with trace(trace_name, trace_id=trace_id):
-            await self.run_with_mcp_servers()
+    async def RunWithTrace(self):
+        TraceName = f"{self.Name}-trading" if self.DoTrade else f"{self.Name}-rebalancing"
+        TraceId = MakeTraceId(f"{self.Name.lower()}")
+        with trace(TraceName, trace_id=TraceId):
+            await self.RunWithMCPServers()
 
-    async def run(self):
+    async def Run(self):
         try:
-            await self.run_with_trace()
+            await self.RunWithTrace()
         except Exception as e:
-            print(f"Error running trader {self.name}: {e}")
-        self.do_trade = not self.do_trade
+            print (f"Error running trader {self.Name}: {e}")
+        self.DoTrade = not self.DoTrade
