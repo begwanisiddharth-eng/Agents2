@@ -69,7 +69,7 @@ function flash(tile: HTMLElement, dir: "up" | "down"): void {
 }
 
 function formatMoney(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}k`;
-  return `$${n.toFixed(0)}`;
+  if (n >= 1_000_000) return `Rs.${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `Rs.${(n / 1_000).toFixed(1)}k`;
+  return `Rs.${n.toFixed(0)}`;
 }

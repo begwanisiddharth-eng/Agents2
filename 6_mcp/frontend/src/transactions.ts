@@ -36,7 +36,7 @@ export class TransactionsView {
 
       const detail = document.createElement("span");
       detail.className = "txn-detail";
-      detail.textContent = `${Math.abs(t.quantity)} ${t.symbol} @ $${t.price.toFixed(2)}`;
+      detail.textContent = `${Math.abs(t.quantity)} ${t.symbol} @ Rs.${t.price.toFixed(2)}`;
 
       row.append(date, side, detail);
       this.host.append(row);

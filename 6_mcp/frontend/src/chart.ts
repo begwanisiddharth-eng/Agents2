@@ -115,7 +115,7 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 function formatCompact(n: number): string {
-  // Accounts sit around $10k, so a tight range needs full figures to stay distinct.
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  return `$${Math.round(n).toLocaleString("en-US")}`;
+  // Accounts start at Rs. 1,000,000, so a tight range needs full figures to stay distinct.
+  if (n >= 1_000_000) return `Rs.${(n / 1_000_000).toFixed(2)}M`;
+  return `Rs.${Math.round(n).toLocaleString("en-US")}`;
 }

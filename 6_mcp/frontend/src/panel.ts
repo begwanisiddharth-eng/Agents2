@@ -27,7 +27,7 @@ export class TraderPanel {
       <header class="panel-head">
         <span class="panel-name"></span>
         <span class="panel-sub"></span>
-        <span class="panel-value" data-trend="flat">$0</span>
+        <span class="panel-value" data-trend="flat">Rs.0</span>
         <span class="panel-pnl"></span>
         <span class="panel-strategy"></span>
       </header>
@@ -91,10 +91,10 @@ export class TraderPanel {
 }
 
 function formatMoney(n: number): string {
-  return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  return `Rs.${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
 function formatPnl(n: number): string {
   const sign = n >= 0 ? "+" : "-";
-  return `${sign}${Math.abs(n).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}`;
+  return `${sign}Rs.${Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }

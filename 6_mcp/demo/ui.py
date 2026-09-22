@@ -1,183 +1,195 @@
 import gradio as gr
 from demo.util import Color
 import pandas as pd
-from backend.trading_floor import names, lastnames, short_model_names
+from backend.trading_floor import Names, LastNames, ShortModelNames
 import plotly.express as px
 from backend.accounts import Account
-from backend.database import read_log
+from backend.database import ReadLog
 
-mapper = {
+
+Mapper = {
     "trace": Color.WHITE,
     "agent": Color.CYAN,
     "function": Color.GREEN,
     "generation": Color.YELLOW,
     "response": Color.MAGENTA,
-    "account": Color.RED,
+    "account": Color.RED
 }
 
-
 class Trader:
-    def __init__(self, name: str, lastname: str, model_name: str):
-        self.name = name
-        self.lastname = lastname
-        self.model_name = model_name
-        self.account = Account.get(name)
+    def __init__(self, Name:str, LastName: str, ModelName: str):
+        self.Name = Name
+        self.LastName = LastName
+        self.ModelName = ModelName
+        self.account = Account.Get(Name)
 
-    def reload(self):
-        self.account = Account.get(self.name)
+    def Reload(self):
+        self.account = Account.Get(self.Name)
 
-    def get_title(self) -> str:
-        return f"<div style='text-align: center;font-size:34px;'>{self.name}<span style='color:#ccc;font-size:24px;'> ({self.model_name}) - {self.lastname}</span></div>"
+    def GetTitle(self) -> str:
+        return f"<div style='text-align: center; font-size: 34px;'>{self.Name}<span style='color:#ccc; font-size:24px;'> ({self.ModelName}) - {self.LastName}</span></div>"
 
-    def get_strategy(self) -> str:
-        return self.account.get_strategy()
+    def GetStrategy(self) -> str:
+        return self.account.GetStrategy()
 
-    def get_portfolio_value_df(self) -> pd.DataFrame:
-        df = pd.DataFrame(self.account.portfolio_value_time_series, columns=["datetime", "value"])
-        df["datetime"] = pd.to_datetime(df["datetime"])
+    def GetPortfolioValueDf(self) -> pd.DataFrame:
+        df = pd.DataFrame(self.account.portfolio_value_time_series, columns = ["DateTime", "Value"])
+        df["DateTime"] = pd.to_datetime(df["DateTime"])
         return df
 
-    def get_portfolio_value_chart(self):
-        df = self.get_portfolio_value_df()
-        fig = px.line(df, x="datetime", y="value")
-        margin = dict(l=40, r=20, t=20, b=40)
-        fig.update_layout(
+    def GetPortfolioValueChart(self):
+        Df = self.GetPortfolioValueDf()
+        Fig = px.line(Df, x="DateTime", y="Value")
+        Margin = dict[str,int](l=40, r=20, t=20, b=40)
+        Fig.update_layout(
             height=300,
-            margin=margin,
+            margin=Margin,
             xaxis_title=None,
             yaxis_title=None,
             paper_bgcolor="#bbb",
-            plot_bgcolor="#dde",
+            plot_bgcolor = "#dde"
         )
-        fig.update_xaxes(tickformat="%m/%d", tickangle=45, tickfont=dict(size=8))
-        fig.update_yaxes(tickfont=dict(size=8), tickformat=",.0f")
-        return fig
+        Fig.update_xaxes(tickformat="%m/%d",tickangle=45, tickfont=dict(size=8))
+        Fig.update_yaxes(tickfont=dict(size=8), tickformat=",.0f")
+        return Fig
 
-    def get_holdings_df(self) -> pd.DataFrame:
+    def GetHoldingsDf(self) -> pd.DataFrame:
         """Convert holdings to DataFrame for display"""
-        holdings = self.account.get_holdings()
-        if not holdings:
-            return pd.DataFrame(columns=["Symbol", "Quantity"])
-
+        Holdings = self.account.GetHoldings()
+        if not Holdings:
+            return pd.DataFrame(columns=["Symbol","Quantity"])
         df = pd.DataFrame(
-            [{"Symbol": symbol, "Quantity": quantity} for symbol, quantity in holdings.items()]
+            [{"Symbol":Symbol, "Quantity": Quantity} for Symbol, Quantity in Holdings.items()]
         )
         return df
 
-    def get_transactions_df(self) -> pd.DataFrame:
+    def GetTransactionsDf(self) -> pd.DataFrame:
         """Convert transactions to DataFrame for display"""
-        transactions = self.account.list_transactions()
-        if not transactions:
+        Transactions = self.account.ListTransactions()
+        if not Transactions:
             return pd.DataFrame(columns=["Timestamp", "Symbol", "Quantity", "Price", "Rationale"])
+        return pd.DataFrame(Transactions)
 
-        return pd.DataFrame(transactions)
-
-    def get_portfolio_value(self) -> str:
+    def GetPortfolioValue(self) -> str:
         """Calculate total portfolio value based on current prices"""
-        portfolio_value = self.account.calculate_portfolio_value() or 0.0
-        pnl = self.account.calculate_profit_loss(portfolio_value) or 0.0
-        color = "green" if pnl >= 0 else "red"
-        sign = "+" if pnl >= 0 else "-"
-        return f"<div style='text-align: center;background-color:{color};'><span style='font-size:32px'>${portfolio_value:,.0f}</span><span style='font-size:24px'>&nbsp;&nbsp;&nbsp;{sign}${abs(pnl):,.0f}</span></div>"
+        PortfolioValue = self.account.CalculatePortfolioValue() or 0.0
+        PnL = self.account.CalculateProfitLoss(PortfolioValue) or 0.0
+        Color = "green" if PnL >=0 else "red"
+        Sign = "+" if PnL >=0 else "-"
+        return f"<div style='text-align: center;background-color:{Color};'><span style='font-size:32px'>Rs.{PortfolioValue:,.0f}</span><span style='font-size:24px'>&nbsp;&nbsp;&nbsp;{Sign}Rs.{abs(PnL):,.0f}</span></div>"
 
-    def get_logs(self, previous=None) -> str:
-        logs = read_log(self.name, last_n=13)
-        response = ""
-        for log in logs:
-            timestamp, type, message = log
-            color = mapper.get(type, Color.WHITE).value
-            response += f"<span style='color:{color}'>{timestamp} : [{type}] {message}</span><br/>"
-        response = f"<div style='height:250px; overflow-y:auto;'>{response}</div>"
-        if response != previous:
-            return response
+    def GetLogs(self, Previous=None) -> str:
+        Logs = ReadLog(self.Name,LastN=13)
+        Response = ""
+        for Log in Logs:
+            Timestamp, Type, Message = Log
+            color = Mapper.get(Type, Color.WHITE).value
+            Response += f"<span style='color:{color}'>{Timestamp} : [{Type}] {Message}</span><br/>"
+        Response = f"<div style='height:250px; overflow-y:auto;'>{Response}</div>"
+        if Response != Previous:
+            return Response
         return gr.update()
 
-
 class TraderView:
-    def __init__(self, trader: Trader):
-        self.trader = trader
-        self.portfolio_value = None
-        self.chart = None
-        self.holdings_table = None
-        self.transactions_table = None
+    def __init__(self, trader:Trader):
+        self.trader=trader
+        self.PortfolioValue = None
+        self.Chart = None
+        self.HoldingsTable = None
+        self.TransactionsTable = None
 
-    def make_ui(self):
+    def MakeUI(self):
         with gr.Column():
-            gr.HTML(self.trader.get_title())
+            gr.HTML(self.trader.GetTitle())
             with gr.Row():
-                self.portfolio_value = gr.HTML(self.trader.get_portfolio_value)
+                self.PortfolioValue = gr.HTML(self.trader.GetPortfolioValue)
             with gr.Row():
-                self.chart = gr.Plot(
-                    self.trader.get_portfolio_value_chart, container=True, show_label=False
+                self.Chart = gr.Plot(
+                    self.trader.GetPortfolioValueChart, container=True, show_label=False
                 )
             with gr.Row(variant="panel"):
-                self.log = gr.HTML(self.trader.get_logs)
+                self.Log = gr.HTML(self.trader.GetLogs)
             with gr.Row():
-                self.holdings_table = gr.Dataframe(
-                    value=self.trader.get_holdings_df,
-                    label="Holdings",
-                    headers=["Symbol", "Quantity"],
+                self.HoldingsTable = gr.DataFrame(
+                    value = self.trader.GetHoldingsDf,
+                    label = "Holdings",
+                    headers = ["Symbol","Quantity"],
                     row_count=5,
                     column_count=2,
                     max_height=300,
-                    elem_classes=["dataframe-fix-small"],
+                    elem_classes=["dataframe-fix-small"]
                 )
             with gr.Row():
-                self.transactions_table = gr.Dataframe(
-                    value=self.trader.get_transactions_df,
-                    label="Recent Transactions",
-                    headers=["Timestamp", "Symbol", "Quantity", "Price", "Rationale"],
-                    row_count=5,
-                    column_count=5,
-                    max_height=300,
-                    elem_classes=["dataframe-fix"],
+                self.TransactionsTable = gr.DataFrame(
+                    value = self.trader.GetTransactionsDf,
+                    label = "Recent Transactions",
+                    headers = ["Timestamp", "Symbol", "Quantity", "Price", "Rationale"],
+                    row_count = 5,
+                    column_count = 5,
+                    max_height = 300,
+                    elem_classes = ["dataframe-fix"]
                 )
-
-        timer = gr.Timer(value=120)
-        timer.tick(
-            fn=self.refresh,
-            inputs=[],
-            outputs=[
-                self.portfolio_value,
-                self.chart,
-                self.holdings_table,
-                self.transactions_table,
+        Timer = gr.Timer(value=120)
+        Timer.tick(
+            fn = self.Refresh,
+            inputs = [],
+            outputs = [
+                self.PortfolioValue,
+                self.Chart,
+                self.HoldingsTable,
+                self.TransactionsTable
             ],
-            show_progress="hidden",
-            queue=False,
+            show_progress = "hidden",
+            queue = False
         )
-        log_timer = gr.Timer(value=0.5)
-        log_timer.tick(
-            fn=self.trader.get_logs,
-            inputs=[self.log],
-            outputs=[self.log],
-            show_progress="hidden",
-            queue=False,
+        LogTimer = gr.Timer(value=0.5)
+        LogTimer.tick(
+            fn = self.trader.GetLogs,
+            inputs = [self.Log],
+            outputs = [self.Log],
+            show_progress = "hidden",
+            queue=False
         )
 
-    def refresh(self):
-        self.trader.reload()
+
+    def Refresh(self):
+        self.trader.Reload()
         return (
-            self.trader.get_portfolio_value(),
-            self.trader.get_portfolio_value_chart(),
-            self.trader.get_holdings_df(),
-            self.trader.get_transactions_df(),
+            self.trader.GetPortfolioValue(),
+            self.trader.GetPortfolioValueChart(),
+            self.trader.GetHoldingsDf(),
+            self.trader.GetTransactionsDf()
         )
-
-
-# Main UI construction
-def create_ui():
+    
+## Main UI construction
+##
+## MakeUI() has no return statement, and CreateUI() never collects anything from it, yet the UI still
+## gets built. That works because every Gradio component registers itself the moment it is constructed,
+## as a side effect of its own __init__, rather than being returned and assembled by the caller.
+##
+## `with gr.Blocks(...) as UI:` below opens the root context and makes UI the currently-active Blocks.
+## For each trader, traderView.MakeUI() is then called while still inside that with block. Inside
+## MakeUI(), every gr.Column(), gr.Row(), gr.HTML(...), gr.Plot(...) and gr.DataFrame(...) it constructs
+## sees that the root context is still UI, since Python has not exited the `with gr.Blocks(...)` block -
+## it is just deeper in the call stack - so each one wires itself into UI's component tree the instant
+## it is created.
+##
+## Once every MakeUI() call has finished and the with block exits, UI already contains everything.
+## `return UI` at the end just hands back the object that was silently accumulating components the
+## whole time; it does not assemble anything itself.
+def CreateUI():
     """Create the main Gradio UI for the trading simulation"""
 
     traders = [
-        Trader(trader_name, lastname, model_name)
-        for trader_name, lastname, model_name in zip(names, lastnames, short_model_names)
+        Trader(TraderName, LastName, ModelName)
+        for TraderName, LastName, ModelName in zip(Names,LastNames,ShortModelNames)
     ]
-    trader_views = [TraderView(trader) for trader in traders]
+    traderViews = [TraderView(trader) for trader in traders]
 
-    with gr.Blocks(title="Traders", fill_width=True) as ui:
+    with gr.Blocks(title="Traders", fill_width=True) as UI:
         with gr.Row():
-            for trader_view in trader_views:
-                trader_view.make_ui()
+            for traderView in traderViews:
+                traderView.MakeUI()
 
-    return ui
+    return UI
+
