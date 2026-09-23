@@ -3,7 +3,7 @@ import json
 from dotenv import load_dotenv
 from datetime import datetime
 from .market import GetSharePrice
-from .database import WriteAccount, ReadAccount, WriteLog
+from .database import WriteAccount, ReadAccount, WriteLog, ClearLog
 
 load_dotenv(override=True)
 
@@ -79,6 +79,7 @@ class Account(BaseModel):
         self.transactions = []
         self.portfolio_value_time_series = []
         self.Save()
+        ClearLog(self.name)
 
     def Deposit(self, Amount: float):
         """ Deposit funds into the account. """

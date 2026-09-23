@@ -74,6 +74,18 @@ def WriteLog(Name: str, Type: str, Message: str):
         )
         Conn.commit()
 
+def ClearLog(Name: str):
+    """
+    Delete all log entries for a given name
+
+    Args:
+        Name (str): The name whose log entries should be removed
+    """
+    with sqlite3.connect(DB) as Conn:
+        Cursor = Conn.cursor()
+        Cursor.execute('DELETE FROM logs WHERE name = ?', (Name.lower(),))
+        Conn.commit()
+
 def ReadLog(Name: str, LastN:int=10):
     """
     Read the most recent log entries for a given name

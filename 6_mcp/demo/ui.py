@@ -129,7 +129,7 @@ class TraderView:
                     max_height = 300,
                     elem_classes = ["dataframe-fix"]
                 )
-        Timer = gr.Timer(value=120)
+        Timer = gr.Timer(value=60)
         Timer.tick(
             fn = self.Refresh,
             inputs = [],
