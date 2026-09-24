@@ -38,6 +38,7 @@ function refresh() {
         window.location.href = url.href;
     }
 }
+refresh();
 """
 
 class Color(Enum):
